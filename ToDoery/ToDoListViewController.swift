@@ -9,11 +9,8 @@
 import UIKit
 
 class ToDoListViewController: UITableViewController {
-
     
-   
-    
-    let itemArray = ["FindMike", "Buy Eggos", "Destroy Demogorgon"]
+    var itemArray = ["FindMike", "Buy Eggos", "Destroy Demogorgon"]
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -52,5 +49,43 @@ class ToDoListViewController: UITableViewController {
         tableView.deselectRow(at: indexPath, animated: true)
         
     }
+    
+    //MAKR - Add New Item
+    @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
+        
+        //local variable to get text from Add New item Alert Text
+        var textField = UITextField()
+        
+        let alert = UIAlertController(title: "Add New Todoey Item", message: "", preferredStyle: .alert)
+        
+        
+        let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
+            //what happen once the user clicks the Add Item Buttin on our Alert
+            
+            //add new Item to array to display in list view
+            self.itemArray.append(textField.text!)
+            
+            //reload list view after addig new item
+            self.tableView.reloadData()
+            
+            print("Success")
+            print(textField.text!)
+        }
+        
+        //add text field to alert
+        alert.addTextField { (alertTextField) in
+            alertTextField.placeholder = "Create New Item"
+            textField = alertTextField
+        }
+        
+        
+        //add action (when pressed the button to add action)
+        alert.addAction(action)
+        
+        present(alert, animated: true, completion: nil)
+        
+   
+    }
+    
 }
 
