@@ -12,11 +12,16 @@ class ToDoListViewController: UITableViewController {
     
     var itemArray = [Item]()
     
+    //Data path for local saving the data
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .allDomainsMask).first?.appendingPathComponent("Items.plist")
+    
     let defaults = UserDefaults.standard
     
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        print(dataFilePath)
+        
         let newItem = Item()
         newItem.title = "Find Mike"
         itemArray.append(newItem)
@@ -30,9 +35,13 @@ class ToDoListViewController: UITableViewController {
         itemArray.append(newItem3)
         
         //return Array data from defaults
-        if let items =  defaults.array(forKey: "ToDoListArray") as? [Item] {
-            itemArray = items
-        }
+//        if let items =  defaults.array(forKey: "ToDoListArray") as? [Item] {
+//            itemArray = items
+//        }
+        
+        //Load Data from Path
+        load()
+        
     }
 
     //MARK - Tableview Datasource Methods
@@ -75,8 +84,8 @@ class ToDoListViewController: UITableViewController {
 //           itemArray[indexPath.row].done = false
 //        }
         
-        //Reload table vIew to update check mark
-        tableView.reloadData()
+        //Call funtion to save data to the Local Path and reload the tableView
+        self.save()
         
         //Add checkmark when pressed or removed if already checkmark added
 //        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
@@ -107,11 +116,11 @@ class ToDoListViewController: UITableViewController {
             newItem.title = textField.text!
             self.itemArray.append(newItem)
 
-            //Save array to the user defaults
-            self.defaults.set(self.itemArray, forKey: "ToDoListArray")
+            //Save array to the user defaults (not support custom data type)
+            //self.defaults.set(self.itemArray, forKey: "ToDoListArray")
             
-            //reload list view after addig new item
-            self.tableView.reloadData()
+            //Call funtion to save data to the Local Path and reload the tableView
+            self.save()
             
             print("Success")
             print(textField.text!)
@@ -128,9 +137,37 @@ class ToDoListViewController: UITableViewController {
         alert.addAction(action)
         
         present(alert, animated: true, completion: nil)
-        
-   
+
     }
     
+    
+    //MARK - Model Manupilation Method
+    
+    func save() {
+        //Save array to the user defaults
+        let encoder = PropertyListEncoder()
+        //Encode
+        do {
+            let data = try encoder.encode(self.itemArray)
+            try data.write(to: self.dataFilePath!)
+        } catch {
+            print("Error")
+        }
+        //reload list view after addig new item
+        self.tableView.reloadData()
+    }
+    
+    func load() {
+        //Data Path
+        if let data = try? Data.init(contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            //Decode
+            do {
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+            print("Load Data Error")
+            }
+        }
+    }
 }
 
