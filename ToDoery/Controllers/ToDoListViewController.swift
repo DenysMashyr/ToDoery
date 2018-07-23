@@ -7,123 +7,72 @@
 //
 
 import UIKit
+import CoreData
 
-class ToDoListViewController: UITableViewController {
+class ToDoListViewController: UITableViewController  {
     
     var itemArray = [Item]()
     
-    //Data path for local saving the data
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .allDomainsMask).first?.appendingPathComponent("Items.plist")
+    var selectedCategory : Category? {
+        didSet{
+            load()
+        }
+    }
     
-    let defaults = UserDefaults.standard
+    //Data path for local saving the data
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
 
-        print(dataFilePath)
-        
-        let newItem = Item()
-        newItem.title = "Find Mike"
-        itemArray.append(newItem)
-        
-        let newItem2 = Item()
-        newItem2.title = "Buy Eggos"
-        itemArray.append(newItem2)
-
-        let newItem3 = Item()
-        newItem3.title = "Destroy Demogorgon"
-        itemArray.append(newItem3)
-        
-        //return Array data from defaults
-//        if let items =  defaults.array(forKey: "ToDoListArray") as? [Item] {
-//            itemArray = items
-//        }
-        
         //Load Data from Path
         load()
-        
     }
 
-    //MARK - Tableview Datasource Methods
+    //MARK: - Tableview Datasource Methods
     //Number of Raws
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return itemArray.count
     }
     //Show Array in Table View
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
-       
         let item = itemArray[indexPath.row]
-        
         cell.textLabel?.text = item.title
-        
-        //Set the cell accessory type depend of item array data
         cell.accessoryType = item.done ? .checkmark : .none
-//        if item.done == true {
-//            cell.accessoryType = .checkmark
-//        } else {
-//            cell.accessoryType = .none
-//        }
-        
         return cell
     }
     
-    //MARK - TableView Delegate Methods
-    //Number of Selected Row
+    //MARK: - TableView Delegate Methods
+    
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-
-        //print(itemArray[indexPath.row])
-        
-        //Set property of teh class in array after selection
+      
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
-//        if itemArray[indexPath.row].done == false {
-//            itemArray[indexPath.row].done = true
-//        } else {
-//           itemArray[indexPath.row].done = false
-//        }
+        //Delet Items
+//        context.delete(itemArray[indexPath.row])
+//        itemArray.remove(at: indexPath.row)
         
-        //Call funtion to save data to the Local Path and reload the tableView
         self.save()
-        
-        //Add checkmark when pressed or removed if already checkmark added
-//        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-//            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-//        } else {
-//            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-//        }
-        
-        //Remove animation after selection
         tableView.deselectRow(at: indexPath, animated: true)
-        
     }
     
-    //MAKR - Add New Item
+    //MAKR: - Add New Item
+    
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         
-        //local variable to get text from Add New item Alert Text
         var textField = UITextField()
-        
         let alert = UIAlertController(title: "Add New Todoey Item", message: "", preferredStyle: .alert)
-        
-        
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
-            //what happen once the user clicks the Add Item Buttin on our Alert
-            
-            //add new Item to array to display in list view
-            let newItem = Item()
+
+            let newItem = Item(context: self.context)
             newItem.title = textField.text!
+            newItem.done = false
+            newItem.parentCategory = self.selectedCategory
             self.itemArray.append(newItem)
 
-            //Save array to the user defaults (not support custom data type)
-            //self.defaults.set(self.itemArray, forKey: "ToDoListArray")
-            
-            //Call funtion to save data to the Local Path and reload the tableView
             self.save()
-            
-            print("Success")
-            print(textField.text!)
         }
         
         //add text field to alert
@@ -132,42 +81,73 @@ class ToDoListViewController: UITableViewController {
             textField = alertTextField
         }
         
-        
         //add action (when pressed the button to add action)
         alert.addAction(action)
-        
         present(alert, animated: true, completion: nil)
-
     }
     
     
-    //MARK - Model Manupilation Method
+    //MARK: - Model Manupilation Method
     
     func save() {
-        //Save array to the user defaults
-        let encoder = PropertyListEncoder()
-        //Encode
         do {
-            let data = try encoder.encode(self.itemArray)
-            try data.write(to: self.dataFilePath!)
+             try context.save()
         } catch {
-            print("Error")
+           print("Error saving context \(error)")
         }
         //reload list view after addig new item
-        self.tableView.reloadData()
+        tableView.reloadData()
     }
     
-    func load() {
-        //Data Path
-        if let data = try? Data.init(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            //Decode
-            do {
-                itemArray = try decoder.decode([Item].self, from: data)
-            } catch {
-            print("Load Data Error")
-            }
+    func load(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
+        
+         //Load with parent Category
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
+        if let additionalPredicate = predicate {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, additionalPredicate])
+        } else {
+            request.predicate = categoryPredicate
         }
+
+        do{
+            itemArray = try context.fetch(request)
+        } catch {
+            print("Error fetching data from context \(error)")
+        }
+        
+        tableView.reloadData()
     }
+    
+    
 }
 
+//MARK: - Search bar section
+
+extension ToDoListViewController: UISearchBarDelegate {
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
+        
+        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        load(with: request, predicate: predicate)
+
+        tableView.reloadData()
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            load()
+            
+            //Background
+            DispatchQueue.main.async {
+                 searchBar.resignFirstResponder()
+            }
+
+        }
+    }
+    
+}
